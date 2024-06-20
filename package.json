@@ -1,0 +1,14 @@
+{
+  "name": "suaradesamu",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "author": "Crocoidle",
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^4.28.0"
+  }
+}
