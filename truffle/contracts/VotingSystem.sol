@@ -12,7 +12,6 @@ contract VotingSystem {
         bool hasVoted;
         uint256 candidateId;
         string NIK;
-        string name;
     }
 
     address public owner;
@@ -80,7 +79,7 @@ contract VotingSystem {
         voterCount++;
     }
 
-    function vote(uint256 _candidateId, string memory _NIK, string memory _name)
+    function vote(uint256 _candidateId, string memory _NIK)
         public
         notOwner
         hasNotVoted
@@ -95,8 +94,7 @@ contract VotingSystem {
         voters[msg.sender] = Voter({
             hasVoted: true,
             candidateId: _candidateId,
-            NIK: _NIK,
-            name: _name
+            NIK: _NIK
         });
 
         candidates[_candidateId].voteCount++;
