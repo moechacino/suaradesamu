@@ -1,15 +1,23 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { CustomAPIError } from "../errors/CustomAPIError";
-import { candidateValidator } from "../validators/candidateValidator";
-import { CandidateController } from "../controllers/CandidateController";
 import { VoterValidator } from "../validators/voterValidator";
 import { VoterController } from "../controllers/VoterController";
 
 const registerValidator: object = VoterValidator.register();
 const voteValidator: object = VoterValidator.vote();
 const getVoteValidator: object = VoterValidator.getVote();
+const addVoterValidation = VoterValidator.addVoter();
 async function voterRoutes(fastify: FastifyInstance) {
   try {
+    fastify.post(
+      "/",
+      {
+        schema: addVoterValidation,
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      VoterController.addVoter
+    );
     fastify.post(
       "/register",
       {
@@ -31,6 +39,7 @@ async function voterRoutes(fastify: FastifyInstance) {
       },
       VoterController.getVoter
     );
+    fastify.get("/", VoterController.getAllVoter);
   } catch (error) {
     throw new CustomAPIError(error as string, 500);
   }

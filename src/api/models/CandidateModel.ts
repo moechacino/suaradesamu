@@ -5,6 +5,29 @@ export type CandidateCreateRequest = {
   age: number;
 };
 
+export type OrganizationCreateRequest = {
+  title: string;
+  periodStart: Date;
+  periodEnd: Date;
+};
+
+export type WorkExperienceCreateRequest = {
+  title: string;
+  periodStart: Date;
+  periodEnd: Date;
+};
+export type EducationCreateRequest = {
+  degree: string;
+  institution: string;
+  periodStart: Date;
+  periodEnd: Date;
+};
+
+export type WorkPlanCreateRequest = {
+  title: string;
+  detail: string;
+};
+
 export type CandidateResponse = {
   id: number;
   name: string;

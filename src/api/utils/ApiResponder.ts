@@ -1,11 +1,21 @@
 import fastJsonStringify from "fast-json-stringify";
 import { FastifyReply } from "fastify";
-const successSchema = {
+const successSchemaObject = {
   type: "object",
   properties: {
     statusCode: { type: "integer" },
     success: { type: "boolean" },
     data: { type: "object", additionalProperties: true },
+    message: { type: "string" },
+  },
+} as const;
+
+const successSchemaArray = {
+  type: "object",
+  properties: {
+    statusCode: { type: "integer" },
+    success: { type: "boolean" },
+    data: { type: "array", additionalProperties: true },
     message: { type: "string" },
   },
 } as const;
@@ -19,14 +29,15 @@ const errSchema = {
   },
 } as const;
 
-const successStringify = fastJsonStringify(successSchema);
+const successStringifyObject = fastJsonStringify(successSchemaObject);
+const successStringifyArray = fastJsonStringify(successSchemaArray);
 const errStringify = fastJsonStringify(errSchema);
 
 export class ApiResponder {
   static successResponse(
     reply: FastifyReply,
     statusCode: number,
-    data: object,
+    data: object | object[],
     message: string
   ) {
     const response = {
@@ -35,10 +46,17 @@ export class ApiResponder {
       data,
       message,
     };
-    reply
-      .status(statusCode)
-      .type("application/json")
-      .send(successStringify(response));
+    if (Array.isArray(data)) {
+      reply
+        .status(statusCode)
+        .type("application/json")
+        .send(successStringifyArray(response));
+    } else {
+      reply
+        .status(statusCode)
+        .type("application/json")
+        .send(successStringifyObject(response));
+    }
   }
 
   static errorResponse(reply: FastifyReply, statusCode: number, error: string) {

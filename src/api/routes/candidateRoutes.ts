@@ -1,21 +1,70 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import {
+  FastifyInstance,
+  FastifyRequest,
+  FastifyReply,
+  preHandlerHookHandler,
+} from "fastify";
 import { CustomAPIError } from "../errors/CustomAPIError";
-import { candidateValidator } from "../validators/candidateValidator";
 import { CandidateController } from "../controllers/CandidateController";
-
-const createValidator: object = candidateValidator.create();
+import multer from "fastify-multer";
+import multerOption from "../plugins/multer";
+import { CandidateValidator } from "../validators/candidateValidator";
+const createOrganizationValidation = CandidateValidator.createOrganization();
+const createWorkExperienceValidation =
+  CandidateValidator.createWorkExperience();
+const createEducationValidation = CandidateValidator.createEducation();
+const createWorkPlanValidation = CandidateValidator.createWorkPlan();
 async function candidateRoutes(fastify: FastifyInstance) {
   try {
-    // fastify.post(
-    //   "/create",
-    //   {
-    //     schema: createValidator,
-    //   },
-    //   AdminController.login
-    // );
-
     fastify.post("/:id", CandidateController.testCreateAccount);
     fastify.get("/", CandidateController.getAll);
+    fastify.get("/:id", CandidateController.getOne);
+    fastify.post(
+      "/create",
+      {
+        preHandler: multer(multerOption).single("file"),
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      CandidateController.create
+    );
+
+    fastify.post(
+      "/organization/:id",
+      {
+        schema: createOrganizationValidation,
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      CandidateController.addOrganizationExperience
+    );
+    fastify.post(
+      "/work-experience/:id",
+      {
+        schema: createWorkExperienceValidation,
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      CandidateController.addWorkExperience
+    );
+    fastify.post(
+      "/education/:id",
+      {
+        schema: createEducationValidation,
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      CandidateController.addEducation
+    );
+    fastify.post(
+      "/work-plan/:id",
+      {
+        schema: createWorkPlanValidation,
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      CandidateController.addWorkPlan
+    );
   } catch (error) {
     throw new CustomAPIError(error as string, 500);
   }

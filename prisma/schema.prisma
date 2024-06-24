@@ -30,7 +30,6 @@ model Voter {
   phone           String? @db.VarChar(20)
   NIK             String @unique   @db.VarChar(20)
   createdAt       DateTime @default(now()) @db.Timestamp(0)
-  account         Account?
   pin             Pin?
 
   @@map("voter")
@@ -39,9 +38,7 @@ model Voter {
 model Account {
   id      Int    @id @default(autoincrement())
   address String @db.VarChar(300)
-  pkey    String @db.VarChar(300)
-  voterId Int    @unique
-  voter   Voter  @relation(fields: [voterId], references: [id])
+  
 
   @@map("account")
 }

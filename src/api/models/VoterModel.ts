@@ -7,8 +7,7 @@ export type VoterRegisterRequest = {
 
 export type VoterVoteRequest = {
   nik: string;
-  address: string;
-  phone: string;
+  phone?: string | null;
   candidateId: number;
 };
 export type VoterResponse = {

@@ -1,4 +1,18 @@
 export class VoterValidator {
+  static addVoter(): object {
+    const schema = {
+      body: {
+        type: "object",
+        required: ["nik", "nfcSN", "name"],
+        properties: {
+          nik: { type: "string" },
+          nfcSN: { type: "string" },
+          name: { type: "string" },
+        },
+      },
+    };
+    return schema;
+  }
   static register(): object {
     const schema = {
       body: {
@@ -17,10 +31,9 @@ export class VoterValidator {
     const schema = {
       body: {
         type: "object",
-        required: ["nik", "address", "phone", "candidateId"],
+        required: ["nik", "candidateId"],
         properties: {
           nik: { type: "string" },
-          address: { type: "string" },
           phone: { type: "string" },
           candidateId: { type: "integer" },
         },
@@ -33,10 +46,9 @@ export class VoterValidator {
     const schema = {
       body: {
         type: "object",
-        required: ["address", "nfcSN"],
+        required: ["privateKey"],
         properties: {
-          address: { type: "string" },
-          nfcSN: { type: "string" },
+          privateKey: { type: "string" },
         },
       },
     };

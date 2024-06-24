@@ -1,12 +1,58 @@
-export class candidateValidator {
-  static create(): object {
+export class CandidateValidator {
+  static createOrganization(): object {
     const schema = {
       body: {
         type: "object",
-        required: ["name", "age"],
+        required: ["title", "periodStart"],
         properties: {
-          username: { type: "string" },
-          age: { type: "integer" },
+          title: { type: "string" },
+          periodStart: { type: "string", format: "date" },
+          periodEnd: { type: "string", format: "date" },
+        },
+      },
+    };
+    return schema;
+  }
+
+  static createWorkExperience(): object {
+    const schema = {
+      body: {
+        type: "object",
+        required: ["title", "periodStart"],
+        properties: {
+          title: { type: "string" },
+          periodStart: { type: "string", format: "date" },
+          periodEnd: { type: "string", format: "date" },
+        },
+      },
+    };
+    return schema;
+  }
+
+  static createEducation(): object {
+    const schema = {
+      body: {
+        type: "object",
+        required: ["degree", "institution", "periodStart"],
+        properties: {
+          title: { type: "string" },
+          institution: { type: "string" },
+          periodStart: { type: "string", format: "date" },
+          periodEnd: { type: "string", format: "date" },
+        },
+      },
+    };
+    return schema;
+  }
+
+  static createWorkPlan(): object {
+    const schema = {
+      body: {
+        type: "object",
+        required: ["title", "detail"],
+        properties: {
+          title: { type: "string" },
+          detail: { type: "string" },
         },
       },
     };

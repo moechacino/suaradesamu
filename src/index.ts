@@ -10,6 +10,7 @@ const fastify = Fastify({
   logger: true,
 });
 
+fastify.register(multer.contentParser);
 fastify.setErrorHandler((error, request, reply) => {
   console.log(error);
 
@@ -22,12 +23,13 @@ fastify.setErrorHandler((error, request, reply) => {
       ApiResponder.errorResponse(reply, 409, error.cause.message);
     }
     ApiResponder.errorResponse(reply, 500, error.message);
+  } else if (error.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED") {
+    ApiResponder.errorResponse(reply, 401, error.message);
   } else {
+    console.log(error.code);
     reply.status(500).send("Something went wrong please try again later");
   }
 });
-
-fastify.register(multer.contentParser);
 fastify.register(authPlugin);
 
 fastify.register(publicApi, { prefix: "/api" });

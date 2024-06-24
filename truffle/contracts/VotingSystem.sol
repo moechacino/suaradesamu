@@ -17,6 +17,7 @@ contract VotingSystem {
     address public owner;
     uint256 public candidateCount;
     uint256 public voterCount;
+    uint public votesCount;
     mapping(uint256 => Candidate) public candidates;
     mapping(address => Voter) private voters;
     mapping(string => bool) private registeredNIKs;
@@ -42,7 +43,10 @@ contract VotingSystem {
 
     modifier validNIK(string memory _NIK) {
         require(registeredNIKs[_NIK], "NIK is not registered");
-
+        _;
+    }
+    modifier isNIKExist(string memory _NIK){
+        require(!registeredNIKs[_NIK], "NIK is registered");
         _;
     }
 
@@ -52,7 +56,21 @@ contract VotingSystem {
         );
         _;
     }
-
+    modifier validCandidate(uint256 _candidateId){
+        require(_candidateId > 0, "Candidate ID must be greater than zero");
+        require(
+            candidates[_candidateId].id == 0,
+            "Candidate with this ID already exists"
+        );
+        _;
+    }
+    modifier isCandidateExist(uint256 _candidateId){
+        require(
+            candidates[_candidateId].id != 0,
+            "Candidate with this ID is not exists"
+        );
+        _;
+    }
     constructor() {
         owner = msg.sender;
     }
@@ -60,15 +78,21 @@ contract VotingSystem {
     function addCandidate(string memory _name, uint256 _candidateId)
         public
         onlyOwner
+        validCandidate(_candidateId)
     {
-        require(_candidateId > 0, "Candidate ID must be greater than zero");
-        require(
-            candidates[_candidateId].id == 0,
-            "Candidate with this ID already exists"
-        );
-
-        candidateCount++;
         candidates[_candidateId] = Candidate(_candidateId, _name, 0);
+        candidateCount++;
+    }
+
+    function checkIfNIKNotRegistered(string memory _NIK )public isNIKExist(_NIK){
+        
+    }
+    function checkIfNIKRegistered(string memory _NIK )public validNIK(_NIK){
+        
+    }
+
+    function checkIfCandidateValid(uint256 _candidateId)public isCandidateExist(_candidateId){
+        
     }
 
     function addNIK(string memory _NIK) public onlyOwner {
@@ -77,6 +101,19 @@ contract VotingSystem {
         registeredNIKs[_NIK] = true;
         NIKs.push(_NIK);
         voterCount++;
+    }
+
+    function removeNIK(string memory _NIK) public onlyOwner hasUsedNIK(_NIK) validNIK(_NIK) {
+        registeredNIKs[_NIK] = false;
+
+        for (uint256 i = 0; i < NIKs.length; i++) {
+            if (keccak256(abi.encodePacked(NIKs[i])) == keccak256(abi.encodePacked(_NIK))) {
+                NIKs[i] = NIKs[NIKs.length - 1];
+                NIKs.pop();
+                voterCount--;
+                break;
+            }
+        }
     }
 
     function vote(uint256 _candidateId, string memory _NIK)
@@ -99,7 +136,7 @@ contract VotingSystem {
 
         candidates[_candidateId].voteCount++;
         usedNIKs[_NIK] = true;
-
+        votesCount++;
         emit Voted(msg.sender, _candidateId);
     }
 
@@ -113,7 +150,7 @@ contract VotingSystem {
         )
     {
         require(
-            _candidateId > 0 && _candidateId <= candidateCount,
+            _candidateId > 0,
             "Invalid candidate ID"
         );
         Candidate memory candidate = candidates[_candidateId];
