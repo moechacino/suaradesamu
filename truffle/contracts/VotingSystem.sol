@@ -133,7 +133,10 @@ contract VotingSystem {
     function checkIfNIKRegistered(string memory _NIK )public validNIK(_NIK){
         
     }
-
+    function checkIfNIKHasUsed(string memory _NIK) public hasUsedNIK(_NIK){
+        
+    }
+    
     function checkIfCandidateValid(uint256 _candidateId)public isCandidateExist(_candidateId){
         
     }

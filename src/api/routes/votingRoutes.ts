@@ -24,6 +24,7 @@ async function votingRoutes(fastify: FastifyInstance) {
       VotingController.endVoting
     );
     fastify.get("/status", VotingController.getVotingStatus);
+    fastify.get("/real-count", VotingController.getVotingCount);
   } catch (error) {
     throw new CustomAPIError(error as string, 500);
   }

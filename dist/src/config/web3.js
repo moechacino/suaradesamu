@@ -1,0 +1,23 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.contractAddress = exports.contractOwnerPkey = exports.contractOwner = exports.votingContract = exports.web3 = void 0;
+const web3_1 = __importDefault(require("web3"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const VotingSystem_json_1 = __importDefault(require("../../truffle/build/contracts/VotingSystem.json"));
+dotenv_1.default.config();
+const encoder = new TextEncoder();
+const network = process.env.BC_NETWORK || "http://127.0.0.1:7545";
+const web3 = new web3_1.default(new web3_1.default.providers.HttpProvider(network));
+exports.web3 = web3;
+const contractABI = VotingSystem_json_1.default.abi;
+const contractOwner = process.env.CONTRACT_OWNER;
+exports.contractOwner = contractOwner;
+const contractOwnerPkey = process.env.CONTRACT_OWNER_PKEY;
+exports.contractOwnerPkey = contractOwnerPkey;
+const contractAddress = VotingSystem_json_1.default.networks["5777"].address;
+exports.contractAddress = contractAddress;
+const votingContract = new web3.eth.Contract(contractABI, contractAddress);
+exports.votingContract = votingContract;

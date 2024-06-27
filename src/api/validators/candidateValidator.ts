@@ -7,7 +7,7 @@ export class CandidateValidator {
         properties: {
           title: { type: "string" },
           periodStart: { type: "string", format: "date" },
-          periodEnd: { type: "string", format: "date" },
+          periodEnd: { type: "string" },
         },
       },
     };
@@ -22,7 +22,7 @@ export class CandidateValidator {
         properties: {
           title: { type: "string" },
           periodStart: { type: "string", format: "date" },
-          periodEnd: { type: "string", format: "date" },
+          periodEnd: { type: "string" },
         },
       },
     };
@@ -38,7 +38,7 @@ export class CandidateValidator {
           title: { type: "string" },
           institution: { type: "string" },
           periodStart: { type: "string", format: "date" },
-          periodEnd: { type: "string", format: "date" },
+          periodEnd: { type: "string" },
         },
       },
     };

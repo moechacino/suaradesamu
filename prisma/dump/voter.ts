@@ -9,9 +9,9 @@ const nfcSN = [
   "7B:Q3:WB:F1:IU",
   "67:58:U4:AE:58",
   "M4:FE:VI:FV:X1",
-  "EE:A5:QO:U4:A4",
-  "V5:TY:4A:ML:2C",
-  "O1:Y6:NB:CM:NS",
+  "EEA5QOU4A4",
+  "V5TY4AML2C",
+  "O1Y6NBCMNS",
 ];
 
 const pinVoter = ["183562", "093516", "546217", "452617", "562846", "956371"];
@@ -37,20 +37,20 @@ const pinVoter = ["183562", "093516", "546217", "452617", "562846", "956371"];
 // }
 export const dumpVoter: Voter[] = [
   {
-    nfsSerialNumber: nfcSN[0],
-    name: "User 1",
+    nfsSerialNumber: "043E0C22DF5D80",
+    name: "Priyono NFC",
     NIK: "350204087862271",
     PIN: pinVoter[0],
   },
   {
-    nfsSerialNumber: nfcSN[1],
-    name: "User 2",
+    nfsSerialNumber: "95F3BCAB",
+    name: "Supardi NFC",
     NIK: "350204087862272",
     PIN: pinVoter[1],
   },
   {
-    nfsSerialNumber: nfcSN[2],
-    name: "User 3",
+    nfsSerialNumber: "047641C2E55B80",
+    name: "Alvian NFC",
     NIK: "350204087862273",
     PIN: pinVoter[2],
   },

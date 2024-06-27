@@ -19,12 +19,24 @@ export class CandidateController {
   }
 
   static async create(request: MulterRequest, reply: FastifyReply) {
-    const { name, age } = request.body as { name: string; age: string };
-    if (!name || !age) {
-      throw new BadRequestError("field 'name' and 'age' is required");
+    const { name, age, noUrut } = request.body as {
+      name: string;
+      age: string;
+      noUrut: string;
+    };
+    if (!name || !age || !noUrut) {
+      throw new BadRequestError(
+        "field 'name' , 'noUrut', and 'age' is required"
+      );
     }
     if (isNaN(Number(age))) {
       throw new BadRequestError("age must be number");
+    }
+    if (isNaN(Number(noUrut))) {
+      throw new BadRequestError("age must be number");
+    }
+    if (!request.file || !request.file.fieldname) {
+      throw new BadRequestError("insert photo profile as file");
     }
     const result = await CandidateService.create(request);
     ApiResponder.successResponse(reply, 200, result, "");

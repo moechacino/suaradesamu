@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { CustomAPIError } from "../errors/CustomAPIError";
 import { VoterValidator } from "../validators/voterValidator";
 import { VoterController } from "../controllers/VoterController";
-
+import multer from "fastify-multer";
 const registerValidator: object = VoterValidator.register();
 const voteValidator: object = VoterValidator.vote();
 const getVoteValidator: object = VoterValidator.getVote();
@@ -27,11 +27,12 @@ async function voterRoutes(fastify: FastifyInstance) {
     );
     fastify.post(
       "/vote",
-      {
-        schema: voteValidator,
-      },
+      // {
+      //   schema: voteValidator,
+      // },
       VoterController.vote
     );
+    fastify.post("/can-vote", VoterController.hasVoterVote);
     fastify.post(
       "/search",
       {
@@ -39,7 +40,23 @@ async function voterRoutes(fastify: FastifyInstance) {
       },
       VoterController.getVoter
     );
-    fastify.get("/", VoterController.getAllVoter);
+    fastify.get(
+      "/",
+      {
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      VoterController.getAllVoter
+    );
+    fastify.post(
+      "/bulk",
+      {
+        preHandler: multer({ storage: multer.memoryStorage() }).single("file"),
+        onRequest: (request: FastifyRequest, reply: FastifyReply) =>
+          fastify.authenticate(request, reply),
+      },
+      VoterController.addVoterBulk
+    );
   } catch (error) {
     throw new CustomAPIError(error as string, 500);
   }

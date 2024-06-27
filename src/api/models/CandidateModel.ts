@@ -3,6 +3,7 @@ import { Candidate } from "@prisma/client";
 export type CandidateCreateRequest = {
   name: string;
   age: number;
+  noUrut: number;
 };
 
 export type OrganizationCreateRequest = {
@@ -32,6 +33,7 @@ export type CandidateResponse = {
   id: number;
   name: string;
   age: number;
+  noUrut: number;
   photoProfileUrl: string;
   photoProfileAlt: string;
   workPlan?: object[] | null;
@@ -45,6 +47,7 @@ export function toCandidateResponse(candidate: Candidate): CandidateResponse {
     id: candidate.id,
     name: candidate.name,
     age: candidate.age,
+    noUrut: candidate.noUrut,
     photoProfileUrl: candidate.photoProfileUrl,
     photoProfileAlt: candidate.photoProfileAlt,
   };

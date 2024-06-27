@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto, { createHash } from "crypto";
 import { FastifyRequest } from "fastify";
 import {
   VoterRegisterRequest,
@@ -14,14 +14,25 @@ import {
   votingContract,
   web3,
 } from "../../config/web3";
+import xlsx from "xlsx";
 import { BadRequestError } from "../errors/BadRequestError";
 import { ConflictRequestError } from "../errors/ConflictRequestError";
+import { NotFoundError } from "../errors/NotFoundError";
+import { MulterRequest } from "../../types/multerType";
+import { File } from "fastify-multer/lib/interfaces";
+import bcrypt from "bcrypt";
 const cryptoAlgorithm = "aes-128-cbc";
 const key = "1SuaraDesaMuPkey1";
 const iv = "1234567890123456";
 
 function generateKeyFromPassword(password: string): Buffer {
   return crypto.pbkdf2Sync(password, "salt", 10000, 16, "sha256");
+}
+
+function hashData(data: string): string {
+  const hash = createHash("sha256");
+  hash.update(data);
+  return hash.digest("hex");
 }
 
 function encrypt(text: string, chiperKey: string) {
@@ -40,6 +51,60 @@ function decrypt(encryptedText: string, chiperKey: string) {
   return decrypted;
 }
 export class VoterService {
+  static async addVoterBulk(request: MulterRequest): Promise<any> {
+    const file = request.file as File;
+    if (!file) {
+      throw new BadRequestError("No File Uploaded");
+    }
+    const workbook = xlsx.read(file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data: {
+      nfcSerialNumber: string;
+      NIK: string;
+      name: string;
+    }[] = xlsx.utils.sheet_to_json(worksheet);
+    const formattedData = data.map((row) => ({
+      ...row,
+      NIK: row.NIK.toString(),
+    }));
+    let transactionData: any[] = [];
+    const transaction = await prismaClient.$transaction(
+      async (prismaClient) => {
+        for (const val of formattedData) {
+          const hashedNIK = hashData(val.NIK);
+          await votingContract.methods
+            .checkIfNIKNotRegistered(hashedNIK)
+            .call();
+          const voter = await prismaClient.voter.create({
+            data: val,
+          });
+          const data = await votingContract.methods
+            .addNIK(hashedNIK)
+            .encodeABI();
+
+          const tx = {
+            from: contractOwner,
+            to: contractAddress,
+            gasPrice: web3.utils.toWei("10", "gwei"),
+            data: data,
+          };
+
+          const signedTx = await web3.eth.accounts.signTransaction(
+            tx,
+            contractOwnerPkey || "FAKE_PKEY"
+          );
+
+          const receipt = await web3.eth.sendSignedTransaction(
+            signedTx.rawTransaction
+          );
+          transactionData.push(val);
+        }
+      }
+    );
+
+    return transaction;
+  }
   static async addVoter(request: FastifyRequest): Promise<object> {
     const { nik, nfcSN, name } = request.body as {
       nik: string;
@@ -58,7 +123,8 @@ export class VoterService {
         "NIK or NFC Serial Number is already registered"
       );
     }
-    await votingContract.methods.checkIfNIKNotRegistered(nik).call();
+    const hashedNIK = hashData(nik);
+    await votingContract.methods.checkIfNIKNotRegistered(hashedNIK).call();
 
     const transaction = await prismaClient.$transaction(async (prisma) => {
       const voter = await prisma.voter.create({
@@ -68,7 +134,7 @@ export class VoterService {
           NIK: nik,
         },
       });
-      const data = await votingContract.methods.addNIK(nik).encodeABI();
+      const data = await votingContract.methods.addNIK(hashedNIK).encodeABI();
 
       const tx = {
         from: contractOwner,
@@ -98,24 +164,14 @@ export class VoterService {
   }
 
   static async getAll(): Promise<object[]> {
-    const data: [] = await votingContract.methods.getAllNIKs().call();
-    const voters: object[] = [];
-    for (const val of data) {
-      const voter = await prismaClient.voter.findUnique({
-        where: {
-          NIK: val,
-        },
-        select: {
-          id: true,
-          name: true,
-          NIK: true,
-          nfcSerialNumber: true,
-        },
-      });
-      if (voter) {
-        voters.push(voter);
-      }
-    }
+    const voters = await prismaClient.voter.findMany({
+      select: {
+        id: true,
+        name: true,
+        NIK: true,
+        nfcSerialNumber: true,
+      },
+    });
     return voters;
   }
 
@@ -145,10 +201,12 @@ export class VoterService {
   }
 
   static async vote(request: FastifyRequest): Promise<any> {
+    console.log(request.body);
     const voterVoteRequest: VoterVoteRequest = request.body as VoterVoteRequest;
+
     const voter = await prismaClient.voter.findUnique({
       where: {
-        NIK: voterVoteRequest.nik,
+        NIK: "350204087862273",
       },
       include: {
         pin: {
@@ -163,9 +221,20 @@ export class VoterService {
       throw new BadRequestError("NIK Tidak Terdaftar");
     }
 
-    await votingContract.methods.checkIfNIKRegistered(voter.NIK).call();
+    const candidate = await prismaClient.candidate.findUnique({
+      where: {
+        id: parseInt(voterVoteRequest.candidateId.toString()),
+      },
+      select: {
+        name: true,
+        noUrut: true,
+      },
+    });
+    const hashedNIK = hashData(voter.NIK);
+    console.log(hashedNIK);
+    await votingContract.methods.checkIfNIKRegistered(hashedNIK).call();
     await votingContract.methods
-      .checkIfCandidateValid(voterVoteRequest.candidateId)
+      .checkIfCandidateValid(candidate?.noUrut)
       .call();
 
     const newAccount = web3.eth.accounts.create();
@@ -173,7 +242,7 @@ export class VoterService {
       newAccount.privateKey
     );
     const data = votingContract.methods
-      .vote(voterVoteRequest.candidateId, voter.NIK)
+      .vote(candidate?.noUrut, hashedNIK)
       .encodeABI();
 
     await web3.eth.sendTransaction({
@@ -214,12 +283,13 @@ export class VoterService {
       privateKey: string;
     };
     const account = await web3.eth.accounts.privateKeyToAccount(privateKey);
+    console.log(account.address);
 
     const voteData: {
       "0": string;
       "1": string;
       "2": string;
-    } = await votingContract.methods.getVoter(account.address).call();
+    } = await votingContract.methods.getVoter().call({ from: account.address });
 
     const hasVoted = voteData["0"];
     const candidateId = voteData["1"].toString();
@@ -230,16 +300,52 @@ export class VoterService {
       select: {
         id: true,
         name: true,
+        noUrut: true,
       },
     });
 
     const formattedData = {
       hasVoted: hasVoted,
-      votedCandidateId: candidate?.id,
+      votedCandidate: candidate?.noUrut,
       votedCandidateName: candidate?.name,
       NIK: NIK,
     };
 
     return formattedData;
+  }
+
+  static async hasVoterVote(request: FastifyRequest): Promise<any> {
+    if (!request.body) {
+      throw new BadRequestError("request body is needed");
+    }
+    const { nfcSerialNumber } = request.body as { nfcSerialNumber: string };
+    if (!nfcSerialNumber) {
+      throw new BadRequestError("'nfcSerialNumber' is required");
+    }
+    const voter = await prismaClient.voter.findUnique({
+      where: {
+        nfcSerialNumber: nfcSerialNumber,
+      },
+      select: {
+        id: true,
+        nfcSerialNumber: true,
+        NIK: true,
+      },
+    });
+
+    if (!voter) {
+      throw new NotFoundError("Tidak Terdaftar");
+    }
+
+    const hashedNIK = hashData(voter.NIK);
+    try {
+      await votingContract.methods.checkIfNIKHasUsed(hashedNIK).call();
+    } catch (error) {
+      return true;
+    }
+    return {
+      id: voter.id,
+      nfcSerialNumber: voter.nfcSerialNumber,
+    };
   }
 }

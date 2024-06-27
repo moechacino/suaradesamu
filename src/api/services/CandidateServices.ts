@@ -34,14 +34,15 @@ export class CandidateService {
           data: {
             name: createRequest.name,
             age: parseInt(createRequest.age.toString()),
+            noUrut: parseInt(createRequest.noUrut.toString()),
             photoProfileAlt: file.filename!,
-            photoProfileUrl: `http://tes.com/${file.filename}`,
+            photoProfileUrl: `https://dory-liberal-uniformly.ngrok-free.app/profile/${file.filename}`,
           },
         });
 
         if (candidate) {
           const data = await votingContract.methods
-            .addCandidate(candidate.name, candidate.id)
+            .addCandidate(candidate.name, candidate.noUrut)
             .encodeABI();
 
           const tx: Transaction = {
@@ -190,7 +191,42 @@ export class CandidateService {
   }
 
   static async getAll(): Promise<any> {
-    const candidates = await prismaClient.candidate.findMany();
+    const candidates = await prismaClient.candidate.findMany({
+      include: {
+        organization: {
+          select: {
+            id: true,
+            title: true,
+            periodStart: true,
+            periodEnd: true,
+          },
+        },
+        workExperience: {
+          select: {
+            id: true,
+            title: true,
+            periodStart: true,
+            periodEnd: true,
+          },
+        },
+        workPlan: {
+          select: {
+            id: true,
+            title: true,
+            detail: true,
+          },
+        },
+        education: {
+          select: {
+            id: true,
+            degree: true,
+            institution: true,
+            periodStart: true,
+            periodEnd: true,
+          },
+        },
+      },
+    });
     // const data = [];
     // for (const val of candidates) {
     //   const candidate: {

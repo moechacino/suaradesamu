@@ -7,7 +7,7 @@ dotenv.config();
 const encoder = new TextEncoder();
 const network = process.env.BC_NETWORK || "http://127.0.0.1:7545";
 const web3 = new Web3(new Web3.providers.HttpProvider(network));
-const contractABI = contractJSON.abi as AbiItem[];
+const contractABI: AbiItem[] = contractJSON.abi as AbiItem[];
 const contractOwner = process.env.CONTRACT_OWNER;
 const contractOwnerPkey = process.env.CONTRACT_OWNER_PKEY;
 const contractAddress = contractJSON.networks["5777"].address;
@@ -19,4 +19,5 @@ export {
   contractOwner,
   contractOwnerPkey,
   contractAddress,
+  contractABI,
 };

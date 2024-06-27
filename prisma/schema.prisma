@@ -58,7 +58,7 @@ model Candidate {
   id   Int    @id @default(autoincrement())
   name String @db.VarChar(100)
   age  Int    @db.SmallInt
-
+  noUrut  Int
   photoProfileUrl String           @db.VarChar(255)
   photoProfileAlt String           @db.VarChar(100)
   workPlan        WorkPlan[]

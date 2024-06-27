@@ -7,6 +7,7 @@ import {
   web3,
 } from "../../config/web3";
 import { BadRequestError } from "../errors/BadRequestError";
+import { prismaClient } from "../../config/database";
 
 export class VotingService {
   static async startVoting(request: FastifyRequest) {
@@ -112,5 +113,73 @@ export class VotingService {
       end: end,
     };
     return formattedVotingStatus;
+  }
+
+  static async getVotingCount(): Promise<object> {
+    const voterCount = await votingContract.methods.getVoterCount().call();
+    const formattedVoterCount = parseInt(
+      web3.utils.toBigInt(voterCount).toString()
+    );
+    console.log(formattedVoterCount);
+    const votesCount = await votingContract.methods.getVotesCount().call();
+    const formattedVotesCount = parseInt(
+      web3.utils.toBigInt(votesCount).toString()
+    );
+    const inPersen =
+      Math.round((formattedVotesCount / formattedVoterCount) * 100 * 10) / 10;
+
+    await votingContract.methods.checkIsVotingEnd().send({
+      from: contractOwner,
+      gasPrice: web3.utils.toWei("10", "gwei"),
+    });
+    const votingStatus: {
+      "0": any;
+      "1": any;
+      "2": any;
+    } = await votingContract.methods.getVotingStatus().call();
+    const doesVotingRun = votingStatus["0"];
+    const end = new Date(Number(BigInt(votingStatus["2"])) * 1000);
+
+    const nowDate = new Date();
+    let data: object[] = [];
+    const candidates = await prismaClient.candidate.findMany({
+      select: {
+        id: true,
+        noUrut: true,
+        name: true,
+      },
+    });
+    if (nowDate > end || !doesVotingRun) {
+      for (const val of candidates) {
+        const candidate: {
+          "0": string;
+          "1": string;
+          "2": string;
+          __length__: number;
+        } = await votingContract.methods.getCandidate(val.id).call();
+        const candidateId = candidate["0"].toString();
+        const candidateName = candidate["1"];
+        const voteCount = candidate["2"].toString();
+        const formattedCandidates = {
+          id: candidateId,
+          name: candidateName,
+          voteCount: voteCount,
+        };
+        data.push({
+          id: val.id,
+          name: formattedCandidates.name,
+          voteCount: parseInt(formattedCandidates.voteCount),
+          noUrut: parseInt(formattedCandidates.id),
+        });
+      }
+    }
+    return {
+      totalPemilih: formattedVoterCount,
+      totalSuaraMasuk: formattedVotesCount,
+      totalSuaraMasukDalamPersen: inPersen,
+      isVotingRun: doesVotingRun,
+      candidatesData: candidates,
+      candidateVotesCount: data,
+    };
   }
 }

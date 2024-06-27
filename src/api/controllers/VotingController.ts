@@ -16,4 +16,9 @@ export class VotingController {
     const result = await VotingService.getVotingStatus();
     ApiResponder.successResponse(reply, 200, result, "");
   }
+
+  static async getVotingCount(request: FastifyRequest, reply: FastifyReply) {
+    const result = await VotingService.getVotingCount();
+    ApiResponder.successResponse(reply, 200, result, "");
+  }
 }
