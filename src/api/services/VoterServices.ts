@@ -1,6 +1,7 @@
 import crypto, { createHash } from "crypto";
 import { FastifyRequest } from "fastify";
 import {
+  VoterGetVoteRequest,
   VoterRegisterRequest,
   VoterVoteRequest,
   toVoterResponse,
@@ -8,6 +9,7 @@ import {
 import { prismaClient } from "../../config/database";
 import { ForbiddenError } from "../errors/ForbiddenError";
 import {
+  contractABI,
   contractAddress,
   contractOwner,
   contractOwnerPkey,
@@ -21,6 +23,8 @@ import { NotFoundError } from "../errors/NotFoundError";
 import { MulterRequest } from "../../types/multerType";
 import { File } from "fastify-multer/lib/interfaces";
 import bcrypt from "bcrypt";
+import { findAbiFunctionBySignature } from "./TransactionService";
+import { AbiInput } from "web3";
 const cryptoAlgorithm = "aes-128-cbc";
 const key = "1SuaraDesaMuPkey1";
 const iv = "1234567890123456";
@@ -201,12 +205,11 @@ export class VoterService {
   }
 
   static async vote(request: FastifyRequest): Promise<any> {
-    console.log(request.body);
     const voterVoteRequest: VoterVoteRequest = request.body as VoterVoteRequest;
 
     const voter = await prismaClient.voter.findUnique({
       where: {
-        NIK: "350204087862273",
+        nfcSerialNumber: voterVoteRequest.nfcSerialNumber,
       },
       include: {
         pin: {
@@ -279,39 +282,91 @@ export class VoterService {
   }
 
   static async getVote(request: FastifyRequest): Promise<any> {
-    const { privateKey } = request.body as {
-      privateKey: string;
-    };
-    const account = await web3.eth.accounts.privateKeyToAccount(privateKey);
-    console.log(account.address);
-
-    const voteData: {
-      "0": string;
-      "1": string;
-      "2": string;
-    } = await votingContract.methods.getVoter().call({ from: account.address });
-
-    const hasVoted = voteData["0"];
-    const candidateId = voteData["1"].toString();
-    const NIK = voteData["2"].toString();
-
-    const candidate = await prismaClient.candidate.findUnique({
-      where: { id: parseInt(candidateId) },
-      select: {
-        id: true,
-        name: true,
-        noUrut: true,
-      },
+    const { nfcSerialNumber, transactionAddress } =
+      request.body as VoterGetVoteRequest;
+    const voter = await prismaClient.voter.findUnique({
+      where: { nfcSerialNumber: nfcSerialNumber },
     });
 
-    const formattedData = {
-      hasVoted: hasVoted,
-      votedCandidate: candidate?.noUrut,
-      votedCandidateName: candidate?.name,
-      NIK: NIK,
-    };
+    const hashedNIK = hashData(voter?.NIK || "fake");
+    const tx = await web3.eth.getTransaction(transactionAddress);
 
-    return formattedData;
+    let decodedInputs: any = null;
+    if (tx.input) {
+      const functionSignature = tx.input.slice(0, 10);
+      const abiFunction = findAbiFunctionBySignature(
+        contractABI,
+        functionSignature
+      );
+
+      if (abiFunction) {
+        if (abiFunction.inputs) {
+          const mutableInputs: AbiInput[] = abiFunction.inputs.map((param) => ({
+            ...param,
+          }));
+
+          decodedInputs = web3.eth.abi.decodeParameters(
+            mutableInputs,
+            tx.input.slice(10)
+          );
+        }
+        for (const key in decodedInputs) {
+          if (typeof decodedInputs[key] === "bigint") {
+            decodedInputs[key] = decodedInputs[key].toString();
+          }
+        }
+      }
+    }
+    const block = await web3.eth.getBlock(tx.blockNumber);
+    const timestamp = block.timestamp;
+    const nowDate = new Date(Number(timestamp) * 1000);
+    const wibOffset = 7 * 60; // WIB is UTC+7
+    // const dateTransactionWIB = new Date(
+    //   nowDate.getTime() + wibOffset * 60 * 1000
+    // );
+    const dateTransactionWIB = nowDate;
+    const year = dateTransactionWIB.getFullYear();
+    const month = dateTransactionWIB.getFullYear();
+    const day = dateTransactionWIB.getDay();
+    const hours = dateTransactionWIB.getHours();
+    const minutes = dateTransactionWIB.getMinutes();
+    let data: object;
+    if (!decodedInputs._NIK || !decodedInputs._candidateId) {
+      data = {
+        fulldate: dateTransactionWIB,
+        date: `${year}-${month}-${day}`,
+        time: `${hours}.${minutes}`,
+        candidateNumber: null,
+        candidateName: null,
+        candidatePhoto: null,
+        transactionAddress: transactionAddress,
+      };
+    } else {
+      if (hashedNIK === decodedInputs._NIK) {
+        const candidate = await prismaClient.candidate.findUnique({
+          where: {
+            noUrut: 1,
+          },
+          select: {
+            name: true,
+            photoProfileUrl: true,
+          },
+        });
+        data = {
+          fulldate: dateTransactionWIB,
+          date: `${year}-${month}-${day}`,
+          time: `${hours}.${minutes}`,
+          candidateNumber: decodedInputs._candidateId,
+          candidateName: candidate?.name,
+          candidatePhoto: candidate?.photoProfileUrl,
+          transactionAddress: transactionAddress,
+        };
+      } else {
+        throw new ForbiddenError("KTP dan Alamat Transaksi Tidak Sesuai");
+      }
+    }
+
+    return data;
   }
 
   static async hasVoterVote(request: FastifyRequest): Promise<any> {

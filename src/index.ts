@@ -6,7 +6,11 @@ import authPlugin from "./api/plugins/authPlugin";
 import multer from "fastify-multer";
 import cors from "@fastify/cors";
 import path from "path";
-import { ContractExecutionError, Eip838ExecutionError } from "web3";
+import {
+  ContractExecutionError,
+  Eip838ExecutionError,
+  TransactionNotFound,
+} from "web3";
 import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
 const port = (Number(process.env.PORT) as number) || 9000;
 const allowedOrigins = [
@@ -51,6 +55,8 @@ fastify.setErrorHandler((error, request, reply) => {
     ApiResponder.errorResponse(reply, 500, error.message);
   } else if (error.code === "FST_JWT_AUTHORIZATION_TOKEN_EXPIRED") {
     ApiResponder.errorResponse(reply, 401, error.message);
+  } else if (error instanceof TransactionNotFound) {
+    ApiResponder.errorResponse(reply, 404, "Transaksi tidak ditemukan");
   } else {
     console.log(error.code);
     reply.status(500).send("Something went wrong please try again later");

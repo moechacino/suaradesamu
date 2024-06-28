@@ -27,9 +27,9 @@ async function voterRoutes(fastify: FastifyInstance) {
     );
     fastify.post(
       "/vote",
-      // {
-      //   schema: voteValidator,
-      // },
+      {
+        schema: voteValidator,
+      },
       VoterController.vote
     );
     fastify.post("/can-vote", VoterController.hasVoterVote);

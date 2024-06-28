@@ -6,9 +6,14 @@ export type VoterRegisterRequest = {
 };
 
 export type VoterVoteRequest = {
-  nik: string;
+  nfcSerialNumber: string;
   phone?: string | null;
   candidateId: number;
+};
+
+export type VoterGetVoteRequest = {
+  transactionAddress: string;
+  nfcSerialNumber: string;
 };
 export type VoterResponse = {
   id: number;

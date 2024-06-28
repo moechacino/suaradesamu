@@ -13,7 +13,7 @@ import {
   EventLog,
 } from "web3";
 
-function findAbiFunctionBySignature(
+export function findAbiFunctionBySignature(
   contractABI: AbiItem[],
   functionSignature: string
 ): AbiItem | undefined {

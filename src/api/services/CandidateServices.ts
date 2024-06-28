@@ -35,6 +35,7 @@ export class CandidateService {
             name: createRequest.name,
             age: parseInt(createRequest.age.toString()),
             noUrut: parseInt(createRequest.noUrut.toString()),
+            visi: createRequest.visi,
             photoProfileAlt: file.filename!,
             photoProfileUrl: `https://dory-liberal-uniformly.ngrok-free.app/profile/${file.filename}`,
           },

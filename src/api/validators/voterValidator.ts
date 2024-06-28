@@ -31,9 +31,9 @@ export class VoterValidator {
     const schema = {
       body: {
         type: "object",
-        required: ["nik", "candidateId"],
+        required: ["nfcSerialNumber", "candidateId"],
         properties: {
-          nik: { type: "string" },
+          nfcSerialNumber: { type: "string" },
           phone: { type: "string" },
           candidateId: { type: "integer" },
         },
@@ -46,9 +46,10 @@ export class VoterValidator {
     const schema = {
       body: {
         type: "object",
-        required: ["privateKey"],
+        required: ["transactionAddress", "nfcSerialNumber"],
         properties: {
-          privateKey: { type: "string" },
+          transactionAddress: { type: "string" },
+          nfcSerialNumber: { type: "string" },
         },
       },
     };

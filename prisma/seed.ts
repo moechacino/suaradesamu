@@ -1,7 +1,6 @@
 import { prismaClient } from "../src/config/database";
 import bcrypt from "bcrypt";
 import { dumpVoter } from "./dump/voter";
-import { candidateData } from "./dump/candidate";
 import {
   contractAddress,
   contractOwner,
@@ -10,6 +9,8 @@ import {
   web3,
 } from "../src/config/web3";
 import crypto, { createHash } from "crypto";
+import path from "path";
+import fs from "fs";
 function hashData(data: string): string {
   const hash = createHash("sha256");
   hash.update(data);
@@ -71,19 +72,36 @@ const addVoterAndPin = async () => {
 };
 
 const addCandidate = async () => {
-  for (const val of candidateData) {
-    const candidate = await prismaClient.candidate.create({
+  const candidateData = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "seederCandidate.json"), "utf-8")
+  );
+
+  for (const candidate of candidateData) {
+    const createdCandidate = await prismaClient.candidate.create({
       data: {
-        name: val.name,
-        age: val.age,
-        noUrut: val.noUrut,
-        photoProfileAlt: val.photoProfileAlt,
-        photoProfileUrl: val.photoProfileUrl,
+        name: candidate.name,
+        age: candidate.age,
+        noUrut: candidate.noUrut,
+        visi: candidate.visi,
+        photoProfileUrl: candidate.photoProfileUrl,
+        photoProfileAlt: candidate.photoProfileAlt,
+        workPlan: {
+          create: candidate.workPlan,
+        },
+        education: {
+          create: candidate.education,
+        },
+        workExperience: {
+          create: candidate.workExperience,
+        },
+        organization: {
+          create: candidate.organization,
+        },
       },
     });
 
     const data = await votingContract.methods
-      .addCandidate(candidate.name, candidate.id)
+      .addCandidate(createdCandidate.name, createdCandidate.noUrut)
       .encodeABI();
 
     const tx = {

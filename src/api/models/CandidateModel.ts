@@ -4,6 +4,7 @@ export type CandidateCreateRequest = {
   name: string;
   age: number;
   noUrut: number;
+  visi: string;
 };
 
 export type OrganizationCreateRequest = {
@@ -34,12 +35,14 @@ export type CandidateResponse = {
   name: string;
   age: number;
   noUrut: number;
+  visi: string;
   photoProfileUrl: string;
   photoProfileAlt: string;
   workPlan?: object[] | null;
   education?: object[] | null;
   workExperience?: object[] | null;
   organization?: object[] | null;
+  misi?: object[] | null;
 };
 
 export function toCandidateResponse(candidate: Candidate): CandidateResponse {
@@ -47,6 +50,7 @@ export function toCandidateResponse(candidate: Candidate): CandidateResponse {
     id: candidate.id,
     name: candidate.name,
     age: candidate.age,
+    visi: candidate.visi,
     noUrut: candidate.noUrut,
     photoProfileUrl: candidate.photoProfileUrl,
     photoProfileAlt: candidate.photoProfileAlt,

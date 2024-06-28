@@ -58,17 +58,28 @@ model Candidate {
   id   Int    @id @default(autoincrement())
   name String @db.VarChar(100)
   age  Int    @db.SmallInt
-  noUrut  Int
+  noUrut  Int @unique
+  visi  String @db.Text
   photoProfileUrl String           @db.VarChar(255)
   photoProfileAlt String           @db.VarChar(100)
   workPlan        WorkPlan[]
   education       Education[]
   workExperience  WorkExperience[]
   organization  OrganizationExperience[]
+  misi Misi[]
   createdAt       DateTime         @default(now()) @db.Timestamp(0)
   updatedAt       DateTime         @updatedAt @db.Timestamp(0)
 
   @@map("candidate")
+}
+
+model Misi {
+  id Int @id @default(autoincrement())
+  misi String @db.Text
+  candidateId Int
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @db.Timestamp(0)
+  @@map("misi")
 }
 
 model WorkPlan {
@@ -76,7 +87,7 @@ model WorkPlan {
   title       String    @db.VarChar(50)
   detail      String    @db.Text
   candidateId Int
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now()) @db.Timestamp(0)
   updatedAt   DateTime  @updatedAt @db.Timestamp(0)
 
@@ -91,7 +102,7 @@ model Education {
   periodEnd   DateTime?
 
   candidateId Int
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now()) @db.Timestamp(0)
   updatedAt   DateTime  @updatedAt @db.Timestamp(0)
 
@@ -105,7 +116,7 @@ model WorkExperience {
   periodEnd   DateTime?
 
   candidateId Int
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now()) @db.Timestamp(0)
   updatedAt   DateTime  @updatedAt @db.Timestamp(0)
 
@@ -119,7 +130,7 @@ model OrganizationExperience{
   periodEnd   DateTime?
 
   candidateId Int
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   createdAt   DateTime  @default(now()) @db.Timestamp(0)
   updatedAt   DateTime  @updatedAt @db.Timestamp(0)
 

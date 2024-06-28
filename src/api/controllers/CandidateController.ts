@@ -19,14 +19,15 @@ export class CandidateController {
   }
 
   static async create(request: MulterRequest, reply: FastifyReply) {
-    const { name, age, noUrut } = request.body as {
+    const { name, age, noUrut, visi } = request.body as {
       name: string;
       age: string;
       noUrut: string;
+      visi: string;
     };
-    if (!name || !age || !noUrut) {
+    if (!name || !age || !noUrut || !visi) {
       throw new BadRequestError(
-        "field 'name' , 'noUrut', and 'age' is required"
+        "field 'name' , 'noUrut', 'age', and 'visi' is required"
       );
     }
     if (isNaN(Number(age))) {
