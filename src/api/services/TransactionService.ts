@@ -90,7 +90,17 @@ export class TransactionService {
             tx.to.toLowerCase() === contractAddress.toLowerCase()
           ) {
             const txDetails = await getTransactionDetails(tx.hash);
-            transactions.push(txDetails);
+            const timestamp = block.timestamp;
+            const date = new Date(Number(timestamp) * 1000);
+            const wibOffset = 7 * 60; // WIB offset
+            const dateTransactionWIB = new Date(
+              date.getTime() + wibOffset * 60 * 1000
+            );
+
+            transactions.push({
+              ...txDetails,
+              date: dateTransactionWIB,
+            });
           }
         }
       }
@@ -107,9 +117,16 @@ export class TransactionService {
       }
     );
 
-    const formattedEvents = events
-      .map((event) => {
+    const formattedEvents = await Promise.all(
+      events.map(async (event) => {
         if (typeof event !== "string") {
+          const block = await web3.eth.getBlock(event.blockNumber);
+          const timestamp = block.timestamp;
+          const date = new Date(Number(timestamp) * 1000);
+          const wibOffset = 7 * 60;
+          const dateTransactionWIB = new Date(
+            date.getTime() + wibOffset * 60 * 1000
+          );
           return {
             blockNumber: Number(event.blockNumber),
             contractName: "VotingSystem",
@@ -117,6 +134,7 @@ export class TransactionService {
             signature: `${event.event} (voter: address, candidateId: uint256)`,
             txHash: event.transactionHash?.toString(),
             logIndex: event.logIndex?.toString(),
+            date: dateTransactionWIB,
             returnValues: {
               voter: (event.returnValues.voter as string).toString(),
               candidateId: (
@@ -127,8 +145,10 @@ export class TransactionService {
         }
         return null;
       })
+    );
+
+    return formattedEvents
       .filter((event) => event !== null)
       .sort((a, b) => b!.blockNumber - a!.blockNumber);
-    return formattedEvents;
   }
 }

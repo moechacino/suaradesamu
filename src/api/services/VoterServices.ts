@@ -22,37 +22,64 @@ import { ConflictRequestError } from "../errors/ConflictRequestError";
 import { NotFoundError } from "../errors/NotFoundError";
 import { MulterRequest } from "../../types/multerType";
 import { File } from "fastify-multer/lib/interfaces";
-import bcrypt from "bcrypt";
+
 import { findAbiFunctionBySignature } from "./TransactionService";
 import { AbiInput } from "web3";
-const cryptoAlgorithm = "aes-128-cbc";
+const cryptoAlgorithm = "aes-256-cbc";
 const key = "1SuaraDesaMuPkey1";
 const iv = "1234567890123456";
 
 function generateKeyFromPassword(password: string): Buffer {
-  return crypto.pbkdf2Sync(password, "salt", 10000, 16, "sha256");
+  return crypto.createHash("sha256").update(password).digest();
 }
-
+function generatePin(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 function hashData(data: string): string {
   const hash = createHash("sha256");
   hash.update(data);
   return hash.digest("hex");
 }
 
-function encrypt(text: string, chiperKey: string) {
-  const ckey = chiperKey || key;
-  const usedKey = generateKeyFromPassword(ckey);
-  let cipher = crypto.createCipheriv(cryptoAlgorithm, usedKey, iv);
-  let encrypted = cipher.update(text, "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return encrypted;
+function encrypt(text: string, chiperKey: string): string {
+  const usedKey = generateKeyFromPassword(chiperKey);
+  const iv = crypto.randomBytes(16); // Generate IV for each encryption
+  const cipher = crypto.createCipheriv(cryptoAlgorithm, usedKey, iv);
+  let encrypted = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
+  const ivHex = iv.toString("hex");
+  const encryptedHex = encrypted.toString("hex");
+  return `${ivHex}:${encryptedHex}`;
 }
-function decrypt(encryptedText: string, chiperKey: string) {
-  const ckey = chiperKey || key;
-  let decipher = crypto.createDecipheriv(cryptoAlgorithm, ckey, iv);
-  let decrypted = decipher.update(encryptedText, "hex", "utf8");
-  decrypted += decipher.final("utf8");
-  return decrypted;
+
+function decrypt(encryptedText: string, chiperKey: string): string {
+  const usedKey = generateKeyFromPassword(chiperKey);
+  const [ivHex, encryptedHex] = encryptedText.split(":");
+  const ivBuffer = Buffer.from(ivHex, "hex");
+  const encryptedBuffer = Buffer.from(encryptedHex, "hex");
+  const decipher = crypto.createDecipheriv(cryptoAlgorithm, usedKey, ivBuffer);
+  let decrypted = Buffer.concat([
+    decipher.update(encryptedBuffer),
+    decipher.final(),
+  ]);
+  return decrypted.toString("utf8");
+}
+async function generateUniquePin() {
+  let isUnique = false;
+  let newPin = "";
+
+  while (!isUnique) {
+    newPin = generatePin();
+    const existingPin = await prismaClient.pin.findUnique({
+      where: {
+        pinCode: newPin,
+      },
+    });
+    if (!existingPin) {
+      isUnique = true;
+    }
+  }
+
+  return newPin;
 }
 export class VoterService {
   static async addVoterBulk(request: MulterRequest): Promise<any> {
@@ -80,30 +107,48 @@ export class VoterService {
           await votingContract.methods
             .checkIfNIKNotRegistered(hashedNIK)
             .call();
-          const voter = await prismaClient.voter.create({
-            data: val,
+          const isVoterExist = await prismaClient.voter.findUnique({
+            where: {
+              nfcSerialNumber: val.nfcSerialNumber,
+            },
           });
-          const data = await votingContract.methods
-            .addNIK(hashedNIK)
-            .encodeABI();
+          if (!isVoterExist) {
+            const voter = await prismaClient.voter.create({
+              data: val,
+            });
 
-          const tx = {
-            from: contractOwner,
-            to: contractAddress,
-            gasPrice: web3.utils.toWei("10", "gwei"),
-            data: data,
-          };
+            const uniquePin = await generateUniquePin();
+            const pin = await prismaClient.pin.create({
+              data: {
+                voterId: voter.id,
+                pinCode: uniquePin,
+              },
+            });
+            const data = await votingContract.methods
+              .addNIK(hashedNIK)
+              .encodeABI();
 
-          const signedTx = await web3.eth.accounts.signTransaction(
-            tx,
-            contractOwnerPkey || "FAKE_PKEY"
-          );
+            const tx = {
+              from: contractOwner,
+              to: contractAddress,
+              gasPrice: web3.utils.toWei("10", "gwei"),
+              data: data,
+            };
 
-          const receipt = await web3.eth.sendSignedTransaction(
-            signedTx.rawTransaction
-          );
-          transactionData.push(val);
+            const signedTx = await web3.eth.accounts.signTransaction(
+              tx,
+              contractOwnerPkey || "FAKE_PKEY"
+            );
+
+            const receipt = await web3.eth.sendSignedTransaction(
+              signedTx.rawTransaction
+            );
+            transactionData.push(val);
+          }
         }
+      },
+      {
+        timeout: 60000,
       }
     );
 
@@ -130,36 +175,45 @@ export class VoterService {
     const hashedNIK = hashData(nik);
     await votingContract.methods.checkIfNIKNotRegistered(hashedNIK).call();
 
-    const transaction = await prismaClient.$transaction(async (prisma) => {
-      const voter = await prisma.voter.create({
-        data: {
-          name: name,
-          nfcSerialNumber: nfcSN,
-          NIK: nik,
-        },
-      });
-      const data = await votingContract.methods.addNIK(hashedNIK).encodeABI();
+    const transaction = await prismaClient.$transaction(
+      async (prismaClient) => {
+        const voter = await prismaClient.voter.create({
+          data: {
+            name: name,
+            nfcSerialNumber: nfcSN,
+            NIK: nik,
+          },
+        });
+        const uniquePin = await generateUniquePin();
+        const pin = await prismaClient.pin.create({
+          data: {
+            voterId: voter.id,
+            pinCode: uniquePin,
+          },
+        });
+        const data = await votingContract.methods.addNIK(hashedNIK).encodeABI();
 
-      const tx = {
-        from: contractOwner,
-        to: contractAddress,
-        gasPrice: web3.utils.toWei("10", "gwei"),
-        data: data,
-      };
+        const tx = {
+          from: contractOwner,
+          to: contractAddress,
+          gasPrice: web3.utils.toWei("10", "gwei"),
+          data: data,
+        };
 
-      const signedTx = await web3.eth.accounts.signTransaction(
-        tx,
-        contractOwnerPkey || "FAKE_PKEY"
-      );
+        const signedTx = await web3.eth.accounts.signTransaction(
+          tx,
+          contractOwnerPkey || "FAKE_PKEY"
+        );
 
-      const receipt = await web3.eth.sendSignedTransaction(
-        signedTx.rawTransaction
-      );
-      return {
-        voter,
-        transactionHash: receipt.transactionHash,
-      };
-    });
+        const receipt = await web3.eth.sendSignedTransaction(
+          signedTx.rawTransaction
+        );
+        return {
+          voter,
+          transactionHash: receipt.transactionHash,
+        };
+      }
+    );
 
     return {
       addedNIK: transaction["voter"],
@@ -197,8 +251,11 @@ export class VoterService {
       },
     });
 
-    if (!voter || voterRegisterRequest.pin !== voter.pin?.pinCode) {
-      throw new ForbiddenError("Anda Tidak Memiliki Hak Pilih");
+    if (!voter) {
+      throw new NotFoundError("Anda tidak memiliki hak pilih");
+    }
+    if (voterRegisterRequest.pin !== voter.pin?.pinCode) {
+      throw new ForbiddenError("Pin tidak sesuai");
     }
 
     return voter;
@@ -221,7 +278,7 @@ export class VoterService {
     });
 
     if (!voter) {
-      throw new BadRequestError("NIK Tidak Terdaftar");
+      throw new NotFoundError("NIK Tidak Terdaftar");
     }
 
     const candidate = await prismaClient.candidate.findUnique({
@@ -273,11 +330,12 @@ export class VoterService {
     const receipt = await web3.eth.sendSignedTransaction(
       signedTx.rawTransaction
     );
-
+    const encryptedTransactionHash = encrypt(
+      receipt.transactionHash.toString(),
+      voterVoteRequest.nfcSerialNumber
+    );
     return {
-      address: newAccount.address,
-      pkey: newAccount.privateKey,
-      transaction: receipt.transactionHash,
+      transactionAddress: encryptedTransactionHash,
     };
   }
 
@@ -289,7 +347,11 @@ export class VoterService {
     });
 
     const hashedNIK = hashData(voter?.NIK || "fake");
-    const tx = await web3.eth.getTransaction(transactionAddress);
+    const decryptedTransaction = decrypt(
+      transactionAddress,
+      voter?.nfcSerialNumber!
+    );
+    const tx = await web3.eth.getTransaction(decryptedTransaction);
 
     let decodedInputs: any = null;
     if (tx.input) {
@@ -321,31 +383,28 @@ export class VoterService {
     const timestamp = block.timestamp;
     const nowDate = new Date(Number(timestamp) * 1000);
     const wibOffset = 7 * 60; // WIB is UTC+7
-    // const dateTransactionWIB = new Date(
-    //   nowDate.getTime() + wibOffset * 60 * 1000
-    // );
-    const dateTransactionWIB = nowDate;
-    const year = dateTransactionWIB.getFullYear();
-    const month = dateTransactionWIB.getFullYear();
-    const day = dateTransactionWIB.getDay();
-    const hours = dateTransactionWIB.getHours();
-    const minutes = dateTransactionWIB.getMinutes();
+    const dateTransactionWIB = new Date(
+      nowDate.getTime() + wibOffset * 60 * 1000
+    );
+    const date = dateTransactionWIB.toISOString().split("T")[0];
+    const time = dateTransactionWIB.toISOString().split("T")[1].slice(0, 5);
+
     let data: object;
     if (!decodedInputs._NIK || !decodedInputs._candidateId) {
       data = {
         fulldate: dateTransactionWIB,
-        date: `${year}-${month}-${day}`,
-        time: `${hours}.${minutes}`,
+        date: date,
+        time: time,
         candidateNumber: null,
         candidateName: null,
         candidatePhoto: null,
-        transactionAddress: transactionAddress,
+        transactionAddress: decryptedTransaction,
       };
     } else {
       if (hashedNIK === decodedInputs._NIK) {
         const candidate = await prismaClient.candidate.findUnique({
           where: {
-            noUrut: 1,
+            noUrut: parseInt(decodedInputs._candidateId),
           },
           select: {
             name: true,
@@ -354,12 +413,12 @@ export class VoterService {
         });
         data = {
           fulldate: dateTransactionWIB,
-          date: `${year}-${month}-${day}`,
-          time: `${hours}.${minutes}`,
+          date: date,
+          time: time,
           candidateNumber: decodedInputs._candidateId,
           candidateName: candidate?.name,
           candidatePhoto: candidate?.photoProfileUrl,
-          transactionAddress: transactionAddress,
+          transactionAddress: decryptedTransaction,
         };
       } else {
         throw new ForbiddenError("KTP dan Alamat Transaksi Tidak Sesuai");

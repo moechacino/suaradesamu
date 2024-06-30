@@ -188,11 +188,46 @@ export class CandidateService {
       },
     });
 
-    return candidate;
+    if (!candidate) {
+      return null;
+    }
+
+    const formatDate = (date: Date | null): string | null => {
+      if (!date) return " sekarang";
+      const options: Intl.DateTimeFormatOptions = {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      };
+      return new Intl.DateTimeFormat("id-ID", options).format(date);
+    };
+    const formattedCandidate = {
+      ...candidate,
+      organization: candidate.organization.map((org) => ({
+        ...org,
+        periodStart: formatDate(org.periodStart),
+        periodEnd: formatDate(org.periodEnd),
+      })),
+      workExperience: candidate.workExperience.map((exp) => ({
+        ...exp,
+        periodStart: formatDate(exp.periodStart),
+        periodEnd: formatDate(exp.periodEnd),
+      })),
+      education: candidate.education.map((edu) => ({
+        ...edu,
+        periodStart: formatDate(edu.periodStart),
+        periodEnd: formatDate(edu.periodEnd),
+      })),
+    };
+
+    return formattedCandidate;
   }
 
   static async getAll(): Promise<any> {
     const candidates = await prismaClient.candidate.findMany({
+      orderBy: {
+        noUrut: "asc",
+      },
       include: {
         organization: {
           select: {
@@ -228,31 +263,38 @@ export class CandidateService {
         },
       },
     });
-    // const data = [];
-    // for (const val of candidates) {
-    //   const candidate: {
-    //     "0": string;
-    //     "1": string;
-    //     "2": string;
-    //     __length__: number;
-    //   } = await votingContract.methods.getCandidate(val.id).call();
-    //   const candidateId = candidate["0"].toString();
-    //   const candidateName = candidate["1"];
-    //   const voteCount = candidate["2"].toString();
 
-    //   const formattedCandidates = {
-    //     id: candidateId,
-    //     name: candidateName,
-    //     voteCount: voteCount,
-    //   };
-    //   data.push({
-    //     db: val,
-    //     blockchain: formattedCandidates,
-    //   });
-    // }
+    const formatDate = (date: Date | null): string | null => {
+      if (!date) return " sekarang";
+      const options: Intl.DateTimeFormatOptions = {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      };
+      return new Intl.DateTimeFormat("id-ID", options).format(date);
+    };
+    const formattedCandidates = candidates.map((candidate) => ({
+      ...candidate,
+      organization: candidate.organization.map((org) => ({
+        ...org,
+        periodStart: formatDate(org.periodStart),
+        periodEnd: formatDate(org.periodEnd),
+      })),
+      workExperience: candidate.workExperience.map((exp) => ({
+        ...exp,
+        periodStart: formatDate(exp.periodStart),
+        periodEnd: formatDate(exp.periodEnd),
+      })),
+      education: candidate.education.map((edu) => ({
+        ...edu,
+        periodStart: formatDate(edu.periodStart),
+        periodEnd: formatDate(edu.periodEnd),
+      })),
+    }));
 
-    return candidates;
+    return formattedCandidates;
   }
+
   static async testCreateAccount(id: number): Promise<any> {
     const candidate = await prismaClient.candidate.findUnique({
       where: {

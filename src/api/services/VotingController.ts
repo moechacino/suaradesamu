@@ -148,6 +148,9 @@ export class VotingService {
         noUrut: true,
         name: true,
       },
+      orderBy: {
+        noUrut: "asc",
+      },
     });
     if (nowDate > end || !doesVotingRun) {
       for (const val of candidates) {
@@ -156,7 +159,7 @@ export class VotingService {
           "1": string;
           "2": string;
           __length__: number;
-        } = await votingContract.methods.getCandidate(val.id).call();
+        } = await votingContract.methods.getCandidate(val.noUrut).call();
         const candidateId = candidate["0"].toString();
         const candidateName = candidate["1"];
         const voteCount = candidate["2"].toString();

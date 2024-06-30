@@ -45,7 +45,7 @@ model Account {
 
 model Pin {
   id      Int    @id @default(autoincrement())
-  pinCode String @db.VarChar(6)
+  pinCode String @db.VarChar(6) @unique
 
   voterId Int   @unique
   voter   Voter @relation(fields: [voterId], references: [id])
